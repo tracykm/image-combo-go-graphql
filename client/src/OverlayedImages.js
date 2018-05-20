@@ -1,6 +1,4 @@
 import React from "react";
-import { gql } from "apollo-boost";
-import { Query } from "react-apollo";
 import { random } from "lodash";
 
 const OverlayedImages = ({ images }) => {
@@ -28,30 +26,4 @@ const OverlayedImages = ({ images }) => {
   );
 };
 
-const GET_IMAGES = gql`
-  query {
-    SrcImagesRandom {
-      id
-      url
-      size
-      category
-    }
-  }
-`;
-
-const App = () => (
-  <Query query={GET_IMAGES}>
-    {({ loading, error, data }) => {
-      if (loading) return <div>Loading...</div>;
-      if (error) return <div>Error :(</div>;
-
-      return (
-        <div>
-          <OverlayedImages images={data.SrcImagesRandom} />)}
-        </div>
-      );
-    }}
-  </Query>
-);
-
-export default App;
+export default OverlayedImages;

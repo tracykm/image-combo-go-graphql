@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import "./index.css";
-import App from "./App";
+import Routes from "./Routes";
 import registerServiceWorker from "./registerServiceWorker";
 
 import ApolloClient from "apollo-boost";
@@ -16,5 +16,5 @@ const ApolloApp = AppComponent => (
   </ApolloProvider>
 );
 
-ReactDOM.render(ApolloApp(App), document.getElementById("root"));
+ReactDOM.render(ApolloApp(Routes), document.getElementById("root"));
 registerServiceWorker();
