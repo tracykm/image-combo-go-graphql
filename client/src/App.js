@@ -1,21 +1,30 @@
-import React, { Component } from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
+import { gql } from "apollo-boost";
+import { Query } from "react-apollo";
 
-class App extends Component {
-  render() {
-    return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <h1 className="App-title">Welcome to React</h1>
-        </header>
-        <p className="App-intro">
-          To get started, edit <code>src/App.js</code> and save to reload.
-        </p>
-      </div>
-    );
+const Image = ({ url, size }) => {
+  return <img src={url} />;
+};
+
+const GET_IMAGES = gql`
+  query {
+    SrcImagesRandom {
+      id
+      url
+      category
+    }
   }
-}
+`;
+
+const App = () => (
+  <Query query={GET_IMAGES}>
+    {({ loading, error, data }) => {
+      if (loading) return <div>Loading...</div>;
+      if (error) return <div>Error :(</div>;
+
+      return <div>{data.SrcImagesRandom.map(d => <Image {...d} />)}</div>;
+    }}
+  </Query>
+);
 
 export default App;
