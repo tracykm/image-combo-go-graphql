@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 	"time"
@@ -23,31 +24,22 @@ const (
 	dbname   = "image_combos"
 )
 
-type Person struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+type User struct {
+	ID    int    `json:"id"`
+	Email string `json:"name"`
 }
-
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-func RandStringRunes(n int) string {
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
-	}
-	return string(b)
-}
-
-var PersonList []Person
 
 func init() {
-	person1 := Person{ID: "a", Name: "Jenny"}
-	person2 := Person{ID: "b", Name: "Henery"}
-	person3 := Person{ID: "b", Name: "Abagle"}
-	PersonList = append(PersonList, person1, person2, person3)
-
 	rand.Seed(time.Now().UnixNano())
 
+	db := initDb()
+	defer db.Close()
+	// insertUser(db, "e@b.com")
+	users := queryUsers(db)
+	println(users[0].Email)
+}
+
+func initDb() *sql.DB {
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
@@ -55,33 +47,61 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	defer db.Close()
-
 	err = db.Ping()
 	if err != nil {
 		panic(err)
 	}
+	return db
+}
+
+func queryUsers(db *sql.DB) []*User {
+	rows, err := db.Query("SELECT * FROM users")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	bks := make([]*User, 0)
+	for rows.Next() {
+		bk := new(User)
+		err := rows.Scan(&bk.ID, &bk.Email)
+		if err != nil {
+			log.Fatal(err)
+		}
+		bks = append(bks, bk)
+	}
+	if err = rows.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	// for _, bk := range bks {
+	// 	fmt.Print(bk.ID, bk.Email)
+	// }
+	return bks
+}
+
+func insertUser(db *sql.DB, email string) User {
 	sqlStatement := `
 	INSERT INTO users (email)
 	VALUES ($1)
 	RETURNING id`
 	id := 0
-	err = db.QueryRow(sqlStatement, "m@m.com").Scan(&id)
+	err := db.QueryRow(sqlStatement, email).Scan(&id)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("New record ID is:", id)
+	return User{id, email}
 }
 
-// var People []Person
-func getPeople() []Person {
-	results := PersonList
-	return results
-}
+// // var Users []User
+// func getUsers() []User {
+// 	results := UserList
+// 	return results
+// }
 
 var personType = graphql.NewObject(
 	graphql.ObjectConfig{
-		Name: "Person",
+		Name: "User",
 		Fields: graphql.Fields{
 			"id": &graphql.Field{
 				Type: graphql.String,
@@ -95,11 +115,11 @@ var personType = graphql.NewObject(
 var queryType = graphql.NewObject(graphql.ObjectConfig{
 	Name: "Query",
 	Fields: graphql.Fields{
-		"People": &graphql.Field{
+		"Users": &graphql.Field{
 			Type:        graphql.NewList(personType),
 			Description: "List of people",
 			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-				return getPeople(), nil
+				return make([]*User, 0), nil
 			},
 		},
 	},
@@ -110,9 +130,9 @@ var rootMutation = graphql.NewObject(graphql.ObjectConfig{
 	Name: "RootMutation",
 	Fields: graphql.Fields{
 		/*
-			curl -g 'http://localhost:8080/graphql?query=mutation+_{createPerson(text:"My+new+person"){id,text,done}}'
+			curl -g 'http://localhost:8080/graphql?query=mutation+_{createUser(text:"My+new+person"){id,text,done}}'
 		*/
-		"createPerson": &graphql.Field{
+		"createUser": &graphql.Field{
 			Type:        personType, // the return type for this field
 			Description: "Create new person",
 			Args: graphql.FieldConfigArgument{
@@ -126,20 +146,20 @@ var rootMutation = graphql.NewObject(graphql.ObjectConfig{
 				name, _ := params.Args["name"].(string)
 
 				// perform mutation operation here
-				// for e.g. create a Person and save to DB.
-				newPerson := Person{
-					ID:   RandStringRunes(8),
-					Name: name,
+				// for e.g. create a User and save to DB.
+				newUser := User{
+					ID:    4,
+					Email: name,
 				}
 
-				PersonList = append(PersonList, newPerson)
+				// UserList = append(UserList, newUser)
 
-				// return the new Person object that we supposedly save to DB
+				// return the new User object that we supposedly save to DB
 				// Note here that
-				// - we are returning a `Person` struct instance here
+				// - we are returning a `User` struct instance here
 				// - we previously specified the return Type to be `personType`
-				// - `Person` struct maps to `personType`, as defined in `personType` ObjectConfig`
-				return newPerson, nil
+				// - `User` struct maps to `personType`, as defined in `personType` ObjectConfig`
+				return newUser, nil
 			},
 		},
 	},
@@ -167,14 +187,14 @@ func main() {
 }
 
 // query {
-// 	People {
+// 	Users {
 // 	  name
 // 	  id
 // 	}
 //   }
 
 // mutation {
-// 	createPerson(name: "Lenny") {
+// 	createUser(name: "Lenny") {
 // 	  name
 // 	  id
 // 	}
