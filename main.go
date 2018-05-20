@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"math/rand"
 	"net/http"
 	"time"
@@ -54,52 +53,7 @@ func initDb() *sql.DB {
 	return db
 }
 
-func queryUsers(db *sql.DB) []*User {
-	rows, err := db.Query("SELECT * FROM users")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer rows.Close()
-
-	bks := make([]*User, 0)
-	for rows.Next() {
-		bk := new(User)
-		err := rows.Scan(&bk.ID, &bk.Email)
-		if err != nil {
-			log.Fatal(err)
-		}
-		bks = append(bks, bk)
-	}
-	if err = rows.Err(); err != nil {
-		log.Fatal(err)
-	}
-
-	// for _, bk := range bks {
-	// 	fmt.Print(bk.ID, bk.Email)
-	// }
-	return bks
-}
-
-func insertUser(db *sql.DB, email string) User {
-	sqlStatement := `
-	INSERT INTO users (email)
-	VALUES ($1)
-	RETURNING id`
-	id := 0
-	err := db.QueryRow(sqlStatement, email).Scan(&id)
-	if err != nil {
-		panic(err)
-	}
-	return User{id, email}
-}
-
-// // var Users []User
-// func getUsers() []User {
-// 	results := UserList
-// 	return results
-// }
-
-var personType = graphql.NewObject(
+var userType = graphql.NewObject(
 	graphql.ObjectConfig{
 		Name: "User",
 		Fields: graphql.Fields{
@@ -116,10 +70,13 @@ var queryType = graphql.NewObject(graphql.ObjectConfig{
 	Name: "Query",
 	Fields: graphql.Fields{
 		"Users": &graphql.Field{
-			Type:        graphql.NewList(personType),
+			Type:        graphql.NewList(userType),
 			Description: "List of people",
 			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-				return make([]*User, 0), nil
+				db := initDb()
+				defer db.Close()
+				users := queryUsers(db)
+				return users, nil
 			},
 		},
 	},
@@ -130,11 +87,11 @@ var rootMutation = graphql.NewObject(graphql.ObjectConfig{
 	Name: "RootMutation",
 	Fields: graphql.Fields{
 		/*
-			curl -g 'http://localhost:8080/graphql?query=mutation+_{createUser(text:"My+new+person"){id,text,done}}'
+			curl -g 'http://localhost:8080/graphql?query=mutation+_{createUser(text:"My+new+user"){id,text,done}}'
 		*/
 		"createUser": &graphql.Field{
-			Type:        personType, // the return type for this field
-			Description: "Create new person",
+			Type:        userType, // the return type for this field
+			Description: "Create new user",
 			Args: graphql.FieldConfigArgument{
 				"name": &graphql.ArgumentConfig{
 					Type: graphql.NewNonNull(graphql.String),
@@ -145,20 +102,9 @@ var rootMutation = graphql.NewObject(graphql.ObjectConfig{
 				// marshall and cast the argument value
 				name, _ := params.Args["name"].(string)
 
-				// perform mutation operation here
-				// for e.g. create a User and save to DB.
-				newUser := User{
-					ID:    4,
-					Email: name,
-				}
-
-				// UserList = append(UserList, newUser)
-
-				// return the new User object that we supposedly save to DB
-				// Note here that
-				// - we are returning a `User` struct instance here
-				// - we previously specified the return Type to be `personType`
-				// - `User` struct maps to `personType`, as defined in `personType` ObjectConfig`
+				db := initDb()
+				defer db.Close()
+				newUser := insertUser(db, name)
 				return newUser, nil
 			},
 		},
