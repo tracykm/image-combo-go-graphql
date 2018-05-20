@@ -23,11 +23,6 @@ const (
 	dbname   = "image_combos"
 )
 
-type User struct {
-	ID    int    `json:"id"`
-	Email string `json:"name"`
-}
-
 func init() {
 	rand.Seed(time.Now().UnixNano())
 
@@ -53,19 +48,6 @@ func initDb() *sql.DB {
 	return db
 }
 
-var userType = graphql.NewObject(
-	graphql.ObjectConfig{
-		Name: "User",
-		Fields: graphql.Fields{
-			"id": &graphql.Field{
-				Type: graphql.String,
-			},
-			"name": &graphql.Field{
-				Type: graphql.String,
-			},
-		},
-	},
-)
 var queryType = graphql.NewObject(graphql.ObjectConfig{
 	Name: "Query",
 	Fields: graphql.Fields{
@@ -77,6 +59,16 @@ var queryType = graphql.NewObject(graphql.ObjectConfig{
 				defer db.Close()
 				users := queryUsers(db)
 				return users, nil
+			},
+		},
+		"SrcImages": &graphql.Field{
+			Type:        graphql.NewList(srcType),
+			Description: "List of images",
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				db := initDb()
+				defer db.Close()
+				images := querySrcImages(db)
+				return images, nil
 			},
 		},
 	},
@@ -106,6 +98,33 @@ var rootMutation = graphql.NewObject(graphql.ObjectConfig{
 				defer db.Close()
 				newUser := insertUser(db, name)
 				return newUser, nil
+			},
+		},
+		"createSrcImage": &graphql.Field{
+			Type:        srcType, // the return type for this field
+			Description: "Create new image",
+			Args: graphql.FieldConfigArgument{
+				"url": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
+				"size": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.Int),
+				},
+				"category": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
+			},
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+
+				// marshall and cast the argument value
+				url, _ := params.Args["url"].(string)
+				size, _ := params.Args["size"].(int)
+				category, _ := params.Args["category"].(string)
+
+				db := initDb()
+				defer db.Close()
+				newImage := insertSrcImage(db, url, size, category)
+				return newImage, nil
 			},
 		},
 	},
