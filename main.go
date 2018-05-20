@@ -71,6 +71,19 @@ var queryType = graphql.NewObject(graphql.ObjectConfig{
 				return images, nil
 			},
 		},
+		"SrcImagesRandom": &graphql.Field{
+			Type:        graphql.NewList(srcType),
+			Description: "List of images",
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				db := initDb()
+				defer db.Close()
+				plant := querySrcImageByCategory(db, "plant")
+				object := querySrcImageByCategory(db, "object")
+				person := querySrcImageByCategory(db, "person")
+				images := []*SrcImage{plant, object, person}
+				return images, nil
+			},
+		},
 	},
 })
 
@@ -164,3 +177,6 @@ func main() {
 // 	  id
 // 	}
 //   }
+
+// CREATE TABLE users (id SERIAL PRIMARY KEY, email TEXT UNIQUE NOT NULL);
+// CREATE TABLE src_images (id SERIAL PRIMARY KEY, url TEXT UNIQUE NOT NULL, size INT, category TEXT);

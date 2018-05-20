@@ -72,3 +72,22 @@ func querySrcImages(db *sql.DB) []*SrcImage {
 	// }
 	return bks
 }
+
+func querySrcImageByCategory(db *sql.DB, category string) *SrcImage {
+	sqlStatement := `
+	SELECT * FROM src_images
+	WHERE category=$1
+	ORDER BY RANDOM()
+	LIMIT 1`
+	row := db.QueryRow(sqlStatement, category)
+
+	bk := new(SrcImage)
+	err := row.Scan(&bk.ID, &bk.Url, &bk.Size, &bk.Category)
+	if err == sql.ErrNoRows {
+		log.Print("no rows found")
+	} else if err != nil {
+		log.Fatal(err)
+	}
+
+	return bk
+}
